@@ -73,7 +73,7 @@ log_comp_dens_conv.unimix = function(m,data){
     lpb = tmp
   }
    
-  lcomp_dens = t(lpa + log(1-exp(lpb-lpa))) - log(b-a)
+  lcomp_dens = t(lpa + log(-expm1(lpb-lpa))) - log(b-a)
   lcomp_dens[a==b,] = t(do.call(lik$lpdfFUN, list(outer(data$x,b,FUN="-")/data$s))
                        -log(data$s))[a==b,]
   return(lcomp_dens)
