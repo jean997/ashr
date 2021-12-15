@@ -67,15 +67,29 @@ log_comp_dens_conv.unimix = function(m,data){
   lpa = do.call(lik$lcdfFUN, list(outer(data$x,a,FUN="-")/data$s))
   lpb = do.call(lik$lcdfFUN, list(outer(data$x,b,FUN="-")/data$s))
   
+  lpau = do.call(lik$lcdfFUNupper, list(outer(data$x,a,FUN="-")/data$s))
+  lpbu = do.call(lik$lcdfFUNupper, list(outer(data$x,b,FUN="-")/data$s))
   if (sum(lpa-lpb,na.rm=TRUE)<0){
     tmp = lpa
     lpa = lpb
     lpb = tmp
+    
+    tmp = lpbu
+    lpbu = lpau
+    lpau = tmp
   }
    
+  #lcomp_dens = t(lpa + log(-expm1(lpb-lpa))) - log(b-a)
   lcomp_dens = t(lpa + log(-expm1(lpb-lpa))) - log(b-a)
   lcomp_dens[a==b,] = t(do.call(lik$lpdfFUN, list(outer(data$x,b,FUN="-")/data$s))
                        -log(data$s))[a==b,]
+  
+  lcomp_dens_u = t(lpbu + log(-expm1(lpau-lpbu))) - log(b-a)
+  lcomp_dens_u[a==b,] = t(do.call(lik$lpdfFUN, list(outer(data$x,b,FUN="-")/data$s))
+                        -log(data$s))[a==b,]
+  
+  inf_ix <- which(!is.finite(lcomp_dens))
+  lcomp_dens[inf_ix] <- lcomp_dens_u[inf_ix]
   return(lcomp_dens)
 }
 
@@ -110,15 +124,19 @@ comp_cdf_post.unimix=function(m,c,data){
   n=length(data$x)
   lik = data$lik
   
-  tmp = matrix(1,nrow=k,ncol=n)
+  tmp <- tmpu <-  matrix(1,nrow=k,ncol=n)
   tmp[m$a > c,] = 0
   subset = m$a<=c & m$b>c # subset of components (1..k) with nontrivial cdf
   if(sum(subset)>0){
     lpna = do.call(lik$lcdfFUN, list(outer(data$x,m$a[subset],FUN="-")/data$s))
     lpnc = do.call(lik$lcdfFUN, list(outer(data$x,rep(c,sum(subset)),FUN="-")/data$s))
     lpnb = do.call(lik$lcdfFUN, list(outer(data$x,m$b[subset],FUN="-")/data$s))
-    tmp[subset,] = t((exp(lpnc-lpna)-1)/(exp(lpnb-lpna)-1))
-    #tmp[subset,] = t((pnc-pna)/(pnb-pna)) ; doing on different log scale reduces numerical issues
+    tmp[subset,] = t((expm1(lpnc-lpna))/(expm1(lpnb-lpna)))
+    
+    lpnau = do.call(lik$lcdfFUNupper, list(outer(data$x,m$a[subset],FUN="-")/data$s))
+    lpncu = do.call(lik$lcdfFUNupper, list(outer(data$x,rep(c,sum(subset)),FUN="-")/data$s))
+    lpnbu = do.call(lik$lcdfFUNupper, list(outer(data$x,m$b[subset],FUN="-")/data$s))
+    tmpu[subset,] = t((-expm1(lpncu-lpnau))/(-expm1(lpnbu-lpnau)))
   }
   subset = (m$a == m$b) #subset of components with trivial cdf
   tmp[subset,]= rep(m$a[subset] <= c,n)
@@ -132,6 +150,7 @@ comp_cdf_post.unimix=function(m,c,data){
   #Here we simply assign the "naive" value as as (c-a)/(b-a)
   #As the component pdf is rather smaller over the region.
   tmpnaive=matrix(rep((c-m$a)/(m$b-m$a),length(data$x)),nrow=k,ncol=n)
+  tmp[is.nan(tmp)]= tmpu[is.nan(tmp)]
   tmp[is.nan(tmp)]= tmpnaive[is.nan(tmp)]
   tmp
 }
