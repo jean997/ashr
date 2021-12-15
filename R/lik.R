@@ -9,6 +9,7 @@ lik_normal = function(){
   list(name="normal",
        const = TRUE, #used to indicate whether the likelihood function is constant for all observations (some parts of ash only work in this case)
        lcdfFUN = function(x){stats::pnorm(x,log=TRUE)},
+       lcdfFUNupper = function(x){stats::pnorm(x, log = TRUE, lower.tail = FALSE)},
        lpdfFUN = function(x){stats::dnorm(x,log=TRUE)},
        etruncFUN = function(a,b){my_etruncnorm(a,b)},
        e2truncFUN = function(a,b){my_e2truncnorm(a,b)}
@@ -27,6 +28,7 @@ lik_t = function(df){
   list(name = "t",
       const = (length(unique(df))==1),
       lcdfFUN = function(x){stats::pt(x,df=df,log=TRUE)},
+      cdfFUNupper = function(x){stats::pt(x,df=df,log=TRUE, lower.tail=FALSE)},
       lpdfFUN = function(x){stats::dt(x,df=df,log=TRUE)},
       etruncFUN = function(a,b){etrunct::e_trunct(a,b,df=df,r=1)},
       e2truncFUN = function(a,b){etrunct::e_trunct(a,b,df=df,r=2)}
@@ -46,6 +48,7 @@ lik_logF = function(df1,df2){
   list(name = "logF",
        const = (length(unique(df1))==1) & (length(unique(df2))==1),
        lcdfFUN = function(x){plogf(x,df1=df1,df2=df2,log.p=TRUE)},
+       lcdfFUNupper = function(x){plogf(x,df1=df1,df2=df2,log.p=TRUE, lower.tail = FALSE)},
        lpdfFUN = function(x){dlogf(x,df1=df1,df2=df2,log=TRUE)},
        etruncFUN = function(a,b){
          matrix(mapply(my_etrunclogf,c(a),c(b),df1,df2),ncol=dim(a)[2])
